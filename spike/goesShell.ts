@@ -80,6 +80,9 @@ export function createGoesShell(scene: Scene) {
     fragmentShader,
     transparent: true,
     depthWrite: false,
+    // Desenhada como sobreposição (cena própria): a casca a 12 km fica sempre acima
+    // dos tiles, e FrontSide já descarta o hemisfério de trás.
+    depthTest: false,
     side: FrontSide,
     uniforms: {
       goesMap: { value: null },

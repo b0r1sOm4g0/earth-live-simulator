@@ -4,6 +4,7 @@ import GUI from 'lil-gui'
 import { createGlobe } from './globe'
 import { createDebugOverlay } from './debugOverlay'
 import { createGoesShell } from './goesShell'
+import { createAtmosphere } from './atmosphere'
 import { bandAt, gsdAt } from '../src/core/scaleBands'
 import { formatAltitude, formatGsd } from '../src/core/units'
 import { fetchLatestFrame, pickResolution, frameAgeMinutes, frameStatus, type GoesFrame } from '../src/data/goesFeed'
@@ -22,13 +23,19 @@ renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
 
 const scene = new Scene()
+// Cena separada para a camada GOES, desenhada por cima de tudo (ver atmosphere.ts).
+const goesScene = new Scene()
 const camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1e9)
 
 const globe = createGlobe(renderer, camera, scene, apiKey)
+
+// A atmosfera pode ser desligada pela URL (?atm=0) para comparar fps e visual.
+const useAtmosphere = new URLSearchParams(location.search).get('atm') !== '0'
+const atmosphere = useAtmosphere ? await createAtmosphere(renderer, scene, camera, goesScene) : null
 const debug = createDebugOverlay()
 
 // Camada GOES: busca o frame mais recente e atualiza a cada 10 minutos.
-const goes = createGoesShell(scene)
+const goes = createGoesShell(goesScene)
 const textureLoader = new TextureLoader().setCrossOrigin('anonymous')
 const resolution = pickResolution(renderer.capabilities.maxTextureSize)
 let currentFrame: GoesFrame | null = null
@@ -54,6 +61,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight
   camera.updateProjectionMatrix()
   renderer.setSize(window.innerWidth, window.innerHeight)
+  atmosphere?.setSize(window.innerWidth, window.innerHeight)
 })
 
 // Medidor de FPS simples (média móvel de 1 s).
@@ -63,7 +71,16 @@ let lastFpsTime = performance.now()
 
 renderer.setAnimationLoop(() => {
   globe.update()
-  renderer.render(scene, camera)
+  if (atmosphere) {
+    // Sol na posição do horário do frame GOES (ou agora, se for o fallback).
+    atmosphere.setDate(currentFrame?.time ?? new Date())
+    atmosphere.render()
+  } else {
+    renderer.autoClear = false
+    renderer.clear()
+    renderer.render(scene, camera)
+    renderer.render(goesScene, camera)
+  }
 
   frames++
   const now = performance.now()
