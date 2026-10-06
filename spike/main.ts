@@ -16,8 +16,11 @@ if (!apiKey) {
   throw new Error('VITE_GOOGLE_MAP_TILES_KEY ausente')
 }
 
-// Depth buffer logarítmico: necessário para ir de 36.000 km a 150 m sem z-fighting.
-const renderer = new WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true })
+// Depth buffer padrão (não logarítmico): o AerialPerspectiveEffect do Takram não
+// reconstruiu a profundidade com o logarítmico (pintava céu sobre os tiles).
+// A precisão de 36.000 km a 150 m vem do GlobeControls, que ajusta near/far da
+// câmera conforme a altitude.
+const renderer = new WebGLRenderer({ antialias: true })
 renderer.setPixelRatio(window.devicePixelRatio)
 renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
@@ -95,6 +98,7 @@ renderer.setAnimationLoop(() => {
   const band = bandAt(alt)
   debug.set({
     altitude: formatAltitude(alt),
+    'lat/lon': (({ lat, lon }) => `${lat.toFixed(4)}, ${lon.toFixed(4)}`)(globe.cameraLatLonDeg()),
     faixa: band.id,
     sensor: `${band.platform} · ${band.sensor}`,
     gsd: formatGsd(gsdAt(alt)),

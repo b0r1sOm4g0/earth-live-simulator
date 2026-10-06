@@ -31,6 +31,13 @@ export function createGlobe(renderer: WebGLRenderer, camera: PerspectiveCamera, 
   controls.maxDistance = MAX_ALTITUDE + tiles.ellipsoid.radius.x
   controls.minDistance = 100
 
+  // O GlobeControls limita o afastamento a "globo com metade do tamanho do FOV"
+  // (~15.700 km de altitude com FOV 60°), o que impede voltar à órbita GEO.
+  // No spike, sobrescrevemos esse método interno com a nossa altitude máxima.
+  // Solução definitiva (Plano 2): FOV mais estreito nas altitudes altas.
+  const overridable = controls as unknown as { _getMaxPerspectiveDistance: () => number }
+  overridable._getMaxPerspectiveDistance = () => MAX_ALTITUDE + tiles.ellipsoid.radius.x
+
   const carto = { lat: 0, lon: 0, height: 0 }
   const tmp = new Vector3()
 
@@ -42,6 +49,12 @@ export function createGlobe(renderer: WebGLRenderer, camera: PerspectiveCamera, 
       tmp.copy(camera.position)
       tiles.ellipsoid.getPositionToCartographic(tmp, carto)
       return carto.height
+    },
+    /** Latitude/longitude (graus) do ponto abaixo da câmera. */
+    cameraLatLonDeg(): { lat: number; lon: number } {
+      tmp.copy(camera.position)
+      tiles.ellipsoid.getPositionToCartographic(tmp, carto)
+      return { lat: carto.lat * MathUtils.RAD2DEG, lon: carto.lon * MathUtils.RAD2DEG }
     },
     update() {
       controls.update()
