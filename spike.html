@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ELS — Spike</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+      canvas { display: block; }
+      #debug {
+        position: fixed; top: 12px; left: 12px; padding: 8px 10px;
+        font: 12px/1.5 ui-monospace, monospace; color: #9f9; background: rgba(0,0,0,.6);
+        white-space: pre; pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <pre id="debug"></pre>
+    <script type="module" src="/spike/main.ts"></script>
+  </body>
+</html>
