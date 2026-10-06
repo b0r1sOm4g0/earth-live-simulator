@@ -187,6 +187,29 @@ rotas de patrulha, rotas de veículos.
 - Interface comum de entidade (`update(dt)`, `object3D`) preparada para pessoas
   e alvos de missão no pós-MVP.
 
+### 6.4 Interface `Sensor` (`sensors/Sensor.ts`)
+O drone é o **primeiro sensor** do jogo. Ele implementa uma interface genérica
+que os dispositivos da central de inteligência (§14) vão reutilizar:
+
+```ts
+type SensorModality = 'optical' | 'thermal' | 'audio' | 'rf';
+
+interface Sensor {
+  id: string;
+  kind: string;               // 'drone' no MVP; depois 'traffic-cam', 'phone', 'wifi-router'...
+  modalities: SensorModality[];
+  position(): GeoPosition;    // lat, lon, altitude
+  orientation(): Orientation; // rumo, inclinação
+  fovDeg?: number;            // ausente em sensores sem imagem (ex.: microfone)
+  update(dt: number): void;
+}
+```
+
+- No MVP, só o `Drone` implementa `Sensor` e só a modalidade `optical` é usada.
+  Não há visualizador de feed no MVP.
+- A `SensorLens` (§5.4) é o ponto onde cada modalidade ganha o seu "look"
+  (térmico, RF) no futuro.
+
 ---
 
 ## 7. HUD (`hud/`, React + Zustand)
@@ -299,6 +322,7 @@ earth-live-simulator/
                  AtmosphereLayer.ts, SensorLens.ts, shaders/
     data/        goesFeed.ts
     zones/       ZoneManager.ts, entities/{Drone,Vehicle}.ts, porto-alegre.json
+    sensors/     Sensor.ts
     hud/         Hud.tsx, Altimeter.tsx, Telemetry.tsx, CoverageBanner.tsx
     state/       store.ts
   public/fallback/goes-ssa.jpg
@@ -318,3 +342,34 @@ earth-live-simulator/
 | Cota/custo do Google 3D Tiles | Monitorar o uso; fallback XYZ; superfície atrás de interface. |
 | Máscara de nuvem por brilho confunde neve/areia clara com nuvem | Aceitável no MVP; limiares ajustáveis; pós-MVP pode usar o produto de máscara de nuvem do GOES. |
 | Desempenho com textura 7200×4320 + tiles + atmosfera | Medido no critério 1 do spike; variante de resolução menor. |
+
+---
+
+## 14. Visão de longo prazo (fora do MVP)
+
+O destino do jogo é uma **central de inteligência simulada**: o jogador desce da
+órbita até a cidade e escolhe dispositivos no mapa para "ver" e "ouvir".
+
+### 14.1 Princípio de produto: terreno real, pessoas fictícias
+- **Reais:** imagem de satélite (GOES, mosaico), mapa, relevo, prédios 3D.
+- **Fictícios, gerados pelo jogo:** câmeras, microfones, celulares, roteadores,
+  pessoas, veículos, conversas, interiores e casos.
+- Motivos: LGPD e termos de uso das fontes; o conteúdo sintético é controlável
+  (permite escrever casos, suspeitos e pistas); não existe fonte confiável de
+  "feeds do mundo". Referência de tom: Watch Dogs, Orwell, Do Not Feed the Monkeys.
+
+### 14.2 Sensores previstos (todos implementam `Sensor`, §6.4)
+- Câmeras de trânsito, de lojas e de condomínios (`optical`, às vezes `thermal`).
+- Celulares (`optical`, `audio`, localização).
+- Microfones ambientes (`audio`).
+- Roteadores Wi-Fi com "visão" por RF (`rf`): silhuetas 3D ruidosas de pessoas
+  dentro dos prédios, inspiradas em pesquisas reais (RF-Pose do MIT, DensePose from WiFi da CMU).
+- Drones com térmico (o mesmo `Drone` do MVP, com a modalidade `thermal`).
+
+### 14.3 Subsistemas necessários (cada um terá sua própria spec)
+1. **Visualizador de feeds:** grade de monitores estilo central de operações; alternar entre sensores.
+2. **Simulação de NPCs:** pessoas e veículos com rotinas (casa, trabalho, trajetos).
+3. **Interiores sintéticos:** volumes/plantas simplificadas dentro dos prédios, para RF e câmeras internas.
+4. **Áudio sintético:** conversas e ambiência geradas ou roteirizadas.
+5. **Casos/missões:** investigações com pistas distribuídas entre os sensores.
+6. **Expansão de zonas:** do Cone Sul para o resto do mundo.
