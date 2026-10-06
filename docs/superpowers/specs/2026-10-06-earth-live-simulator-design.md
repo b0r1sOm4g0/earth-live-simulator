@@ -38,7 +38,8 @@ O código precisa ser modular, comentado e com arquivos pequenos de responsabili
 | Engine 3D | **Three.js + `3d-tiles-renderer` (NASA-AMMOS)** | Controle total de shaders (transição GOES, lentes de sensor, térmico futuro) e melhor caminho para WebXR. |
 | Atmosfera | **`@takram/three-atmosphere`** (MIT) | Espalhamento atmosférico físico: borda azul do planeta e névoa de distância. |
 | Superfície | **Google Photorealistic 3D Tiles** | Globo inteiro + malha 3D fotorrealista em cidades (Porto Alegre incluída). |
-| Imagem GEO | **GOES-19 ABI, setor SSA, GEOCOLOR 7200×4320** (NOAA STAR CDN) | Domínio público; o setor da América do Sul tem mais resolução no Cone Sul que o full disk. |
+| Imagem GEO | **GOES-19 ABI, Full Disk, GEOCOLOR 5424×5424** (NOAA STAR CDN, ~2 km/px) | Domínio público; sem fronteiras desenhadas na imagem (o setor SSA tem fronteiras brancas gravadas); limites de projeção documentados; CDN com CORS liberado. |
+| Câmera base | `GlobeControls` do `3d-tiles-renderer` | Já traz zoom no cursor, pan por "agarrar", amortecimento e ajuste de altura contra os tiles. Envolvido por `GlobeCameraController`. |
 | UI | React (somente HUD) + Zustand | Separação clara entre engine e HUD; stack conhecida. |
 | Testes | Vitest (matemática pura) + Playwright (faixa visual da descida) | |
 | Alternativa de recuo | CesiumJS | Usada só se o spike (Fase 0) reprovar. |
@@ -58,7 +59,7 @@ para desenvolvimento com IA; não roda no navegador).
   só a camada GOES mostra a noite real).
 - WebXR, multiplayer, dados meteorológicos além do GOES.
 - Zonas fora de Porto Alegre.
-- Backend próprio (só o proxy do Vite em dev).
+- Backend próprio.
 
 ---
 
@@ -84,6 +85,9 @@ consulta "nível de zoom" de mapa.
 - Botões +/−, pinch e teclas W/S (descida contínua enquanto pressionadas)
   usam o mesmo mecanismo.
 - Função pura e testável, sem dependência de Three.js.
+- **Condicional ao spike:** o `GlobeControls` já tem zoom proporcional à distância
+  (efetivamente logarítmico) com amortecimento. Se no spike a sensação for boa,
+  `altitude.ts` não é criado; se não for, ele assume o zoom (Fase 1).
 
 ### 4.3 Controlador de câmera (`camera/GlobeCameraController.ts`)
 - **Zoom no cursor:** o ponto do globo sob o cursor permanece fixo na tela durante
@@ -126,7 +130,7 @@ fronteiras de rótulo.
 - Key em `.env.local` (`VITE_GOOGLE_MAP_TILES_KEY`), nunca no código.
 - **Fallback:** imagem XYZ sobre o elipsoide (para dev, se a key falhar ou a cota estourar).
 
-### 5.2 Camada 1 — GOES-19 SSA GEOCOLOR (`layers/GoesLayer.ts`, `layers/goesProjection.ts`)
+### 5.2 Camada 1 — GOES-19 Full Disk GEOCOLOR (`layers/GoesLayer.ts`, `layers/goesProjection.ts`)
 - Uma **casca esférica a ~12 km de altitude** (topo de nuvens), transparente.
 - Fragment shader: posição na casca → lat/lon → ângulos de varredura do
   satélite (projeção geoestacionária fixed-grid do GOES-R) → UV da imagem.
@@ -234,14 +238,19 @@ O HUD só lê; ações do HUD (botões) chamam comandos da engine pelo store.
 ## 8. Dados
 
 ### 8.1 Feed GOES (`data/goesFeed.ts`)
-- Origem: `https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/ssa/GEOCOLOR/`
+- Origem: `https://cdn.star.nesdis.noaa.gov/GOES19/ABI/FD/GEOCOLOR/`
   (mesma lógica do `pachamama-live/goes_stream.sh`): lista o diretório, pega o
-  arquivo `*_GOES19-ABI-ssa-GEOCOLOR-7200x4320.jpg` mais recente.
+  arquivo `*_GOES19-ABI-FD-GEOCOLOR-5424x5424.jpg` mais recente.
 - O timestamp é extraído do nome do arquivo (formato `YYYYDDDHHMM`).
 - Polling a cada 10 min; troca de textura com crossfade curto.
-- **CORS:** em dev, via proxy do Vite (`/noaa/*`). Em produção futura, uma função
-  serverless/cron que copia o frame para storage próprio (fora do MVP).
-- Em GPUs com `MAX_TEXTURE_SIZE < 8192`, usa a variante de resolução menor do mesmo setor.
+- **CORS:** o CDN responde `access-control-allow-origin: *` (verificado em
+  2026-10-06), então não há proxy. Em produção futura, uma função serverless/cron
+  pode copiar o frame para storage próprio (fora do MVP).
+- Em GPUs com `MAX_TEXTURE_SIZE < 8192`, usa a variante 1808×1808 (~6 km/px).
+- A imagem tem logo e legenda gravados no canto inferior; o shader descarta as
+  últimas ~3% das linhas (só afeta a borda polar sul do disco).
+- Projeção: fixed grid do GOES-R, `longitude_of_projection_origin = −75,0°`,
+  extensão de varredura ±0,151872 rad nos dois eixos.
 
 ### 8.2 Google 3D Tiles
 - Key via `.env.local`. Atribuição exibida conforme os termos do Google.
@@ -289,13 +298,13 @@ o resultado seja determinístico. Serve para revisar transições e detectar reg
 ## 11. Fases
 
 ### Fase 0 — Spike técnico (passa/não passa)
-Protótipo descartável: globo com Google 3D Tiles + GOES SSA projetado com
+Protótipo descartável: globo com Google 3D Tiles + GOES Full Disk projetado com
 crossfade + atmosfera Takram + zoom de 36.000 km a 150 m sobre Porto Alegre.
 
 Critérios:
 1. ≥ 45 fps em desktop durante a descida completa.
 2. Contorno do GOES alinhado à costa com erro de poucos km (confirma a projeção
-   e os limites do setor SSA; senão, recuar para o full disk).
+   e os limites de varredura documentados).
 3. Atmosfera Takram funcionando de 36.000 km a 150 m junto com os 3D Tiles.
 4. Sem jitter/z-fighting a 150 m.
 
@@ -316,7 +325,7 @@ Se reprovar em 3 ou 4 sem solução razoável: recuar para CesiumJS e revisar es
 earth-live-simulator/
   src/
     main.ts
-    core/        altitude.ts, scaleBands.ts, gsd.ts, units.ts
+    core/        scaleBands.ts (inclui GSD), curves.ts, units.ts, altitude.ts (condicional, §4.2)
     camera/      GlobeCameraController.ts
     layers/      SurfaceLayer.ts, GoesLayer.ts, goesProjection.ts,
                  AtmosphereLayer.ts, SensorLens.ts, shaders/
@@ -337,11 +346,11 @@ earth-live-simulator/
 
 | Risco | Mitigação |
 |---|---|
-| Projeção/limites exatos do setor SSA desconhecidos | Validar no spike; recuo para o full disk (limites documentados). |
+| Alinhamento da projeção GOES com os tiles do Google | Matemática testada contra o exemplo do GOES-R PUG; alinhamento visual validado no spike. |
 | `three-geospatial` em beta/alpha, migrando para WebGPU | Fixar versões; validar no spike; a atmosfera fica isolada em `AtmosphereLayer`. |
 | Cota/custo do Google 3D Tiles | Monitorar o uso; fallback XYZ; superfície atrás de interface. |
 | Máscara de nuvem por brilho confunde neve/areia clara com nuvem | Aceitável no MVP; limiares ajustáveis; pós-MVP pode usar o produto de máscara de nuvem do GOES. |
-| Desempenho com textura 7200×4320 + tiles + atmosfera | Medido no critério 1 do spike; variante de resolução menor. |
+| Desempenho com textura 5424×5424 + tiles + atmosfera | Medido no critério 1 do spike; variante de resolução menor. |
 
 ---
 
