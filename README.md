@@ -1,56 +1,58 @@
 # Earth Live Simulator
 
-Simulador no navegador em que você começa na órbita geoestacionária (~35.786 km),
-vendo a Terra como o satélite **GOES-19** a vê agora, e desce de forma contínua até
-a altitude de um drone (~150 m), sobre os Google Photorealistic 3D Tiles.
+A browser simulator that starts you in geostationary orbit (~35,786 km), seeing Earth
+the way the **GOES-19** satellite sees it right now, and takes you down in one
+continuous descent to drone altitude (~150 m) over Google Photorealistic 3D Tiles.
 
-> **Status:** Fase 0 (spike técnico) em andamento. O código está na branch
-> `feat/fase0-fundacao-spike` até sair a decisão do spike. Design e planos ficam em
-> [`docs/superpowers/`](docs/superpowers/).
+> **Status:** Phase 0 (technical spike) in progress. The code lives on the
+> `feat/fase0-fundacao-spike` branch until the spike decision is made. The design
+> spec and plans are in [`docs/superpowers/`](docs/superpowers/), currently written
+> in Portuguese.
 
 ## Stack
 
 TypeScript + Vite, [three.js](https://threejs.org/),
 [3d-tiles-renderer](https://github.com/NASA-AMMOS/3DTilesRendererJS),
 [@takram/three-atmosphere](https://github.com/takram-design-engineering/three-geospatial)
-e Vitest.
+and Vitest.
 
-## Como rodar
+## Getting started
 
-Requisitos: Node.js 22.12+ ou 24+.
+Requires Node.js 22.12+ or 24+.
 
 ```bash
 npm install
-cp .env.example .env.local   # depois preencha a key (veja abaixo)
-npm run dev                  # abra http://localhost:5173/spike.html
-npm test                     # testes unitários
+cp .env.example .env.local   # then fill in the key (see below)
+npm run dev                  # open http://localhost:5173/spike.html
+npm test                     # unit tests
 npm run typecheck
 ```
 
-### Key do Google Map Tiles API
+### Google Map Tiles API key
 
-1. No [Google Cloud Console](https://console.cloud.google.com), ative a **Map Tiles API**
-   num projeto com faturamento ativo.
-2. Crie uma chave de API e **restrinja-a**:
-   - restrição de API: só a Map Tiles API;
-   - restrição de aplicativo: referenciadores HTTP `http://localhost:5173/*`.
-3. Configure um orçamento com alerta de cobrança.
-4. Coloque a key em `.env.local` como `VITE_GOOGLE_MAP_TILES_KEY=...`.
+1. In the [Google Cloud Console](https://console.cloud.google.com), enable the
+   **Map Tiles API** in a project with billing enabled.
+2. Create an API key and **restrict it**:
+   - API restriction: Map Tiles API only;
+   - application restriction: HTTP referrers `http://localhost:5173/*`.
+3. Set a budget with a billing alert.
+4. Put the key in `.env.local` as `VITE_GOOGLE_MAP_TILES_KEY=...`.
 
-O `.env.local` está no `.gitignore`; nunca faça commit dele. Variáveis `VITE_*` são
-embutidas no JavaScript que vai para o navegador. Se publicar um build, quem abrir a
-página consegue ver a key. Nesse caso, use uma key separada, restrita ao domínio
-publicado.
+`.env.local` is in `.gitignore`. Never commit it. `VITE_*` variables are embedded in
+the JavaScript that ships to the browser, so anyone who opens a published build can
+read the key. If you publish a build, use a separate key restricted to the published
+domain.
 
-## Dados e licenças de terceiros
+## Third-party data and licenses
 
-- **GOES-19 (NOAA/NESDIS):** imagens de domínio público. O frame em
-  `public/fallback/` é usado quando o feed ao vivo não está disponível.
-- **Google Photorealistic 3D Tiles:** usados pela API, sob os
-  [termos do Google Maps Platform](https://cloud.google.com/maps-platform/terms).
-  A atribuição é obrigatória e os tiles não podem ser cacheados ou redistribuídos.
+- **GOES-19 (NOAA/NESDIS):** public-domain imagery. The frame in `public/fallback/`
+  is shown when the live feed is unavailable.
+- **Google Photorealistic 3D Tiles:** accessed through the API under the
+  [Google Maps Platform terms](https://cloud.google.com/maps-platform/terms).
+  Attribution is required, and tiles must not be cached or redistributed.
 
-## Licença
+## License
 
-O código deste repositório está sob a [GNU AGPL-3.0](LICENSE). Isso não cobre os dados
-de terceiros listados acima, que seguem as licenças deles.
+The code in this repository is licensed under the [GNU AGPL-3.0](LICENSE). That
+license does not cover the third-party data listed above, which keeps its own
+licenses.
